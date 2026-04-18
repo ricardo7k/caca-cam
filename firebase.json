@@ -1,0 +1,36 @@
+{
+  "hosting": {
+    "public": "streamer/public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/api/stream*",
+        "run": { "serviceId": "api-control", "region": "southamerica-east1" }
+      },
+      {
+        "source": "/api/stream/**",
+        "run": { "serviceId": "api-control", "region": "southamerica-east1" }
+      },
+      {
+        "source": "/api/control*",
+        "run": { "serviceId": "api-control", "region": "southamerica-east1" }
+      },
+      {
+        "source": "/api/control/**",
+        "run": { "serviceId": "api-control", "region": "southamerica-east1" }
+      },
+      {
+        "source": "/api/proxy*",
+        "run": { "serviceId": "proxy-snapshot", "region": "southamerica-east1" }
+      },
+      {
+        "source": "/api/proxy/**",
+        "run": { "serviceId": "proxy-snapshot", "region": "southamerica-east1" }
+      }
+    ]
+  }
+}

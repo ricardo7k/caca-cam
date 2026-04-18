@@ -1,0 +1,16 @@
+{
+  "name": "preemption-handler",
+  "version": "1.0.0",
+  "description": "Reinicia a transmissão se a VM Spot for interrompida pelo Google",
+  "main": "index.js",
+  "scripts": {
+    "start": "functions-framework --target=preemptionHandler"
+  },
+  "dependencies": {
+    "@google-cloud/compute": "^4.0.0",
+    "@google-cloud/firestore": "^7.0.0",
+    "firebase-admin": "^12.0.0",
+    "@google-cloud/functions-framework": "^3.0.0",
+    "axios": "^1.6.0"
+  }
+}

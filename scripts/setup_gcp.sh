@@ -26,7 +26,9 @@ gcloud services enable \
     cloudbuild.googleapis.com \
     artifactregistry.googleapis.com \
     identitytoolkit.googleapis.com \
-    firebase.googleapis.com
+    firebase.googleapis.com \
+    eventarc.googleapis.com \
+    eventarcpublishing.googleapis.com
 
 # 2. Criar Service Account (se não existir)
 echo "👤 Criando Service Account: $SA_NAME..."
@@ -50,6 +52,8 @@ ROLES=(
     "roles/logging.configWriter"
     "roles/cloudfunctions.admin"
     "roles/firebase.admin"
+    "roles/eventarc.eventReceiver"
+    "roles/run.admin"
 )
 
 for ROLE in "${ROLES[@]}"; do

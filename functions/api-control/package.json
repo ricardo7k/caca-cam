@@ -1,0 +1,16 @@
+{
+  "name": "api-control",
+  "version": "1.0.0",
+  "description": "Controle de VMs Spot e Estado da Transmissão",
+  "main": "index.js",
+  "scripts": {
+    "start": "functions-framework --target=apiControl"
+  },
+  "dependencies": {
+    "@google-cloud/compute": "^4.0.0",
+    "@google-cloud/firestore": "^7.0.0",
+    "firebase-admin": "^12.0.0",
+    "@google-cloud/functions-framework": "^3.0.0",
+    "cors": "^2.8.5"
+  }
+}
