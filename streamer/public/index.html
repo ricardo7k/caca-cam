@@ -188,6 +188,18 @@
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
+        @media (max-width: 1100px) {
+            .server-content {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .server-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .server-content.collapsed {
             display: none;
         }
@@ -370,10 +382,12 @@
                 <input type="range" id="quality" min="10" max="95" value="60">
             </div>
 
-            <div class="control-group">
-                <label>YouTube Stream Key</label>
-                <input type="password" id="streamKeyInput" placeholder="Pode colar aqui sua chave...">
-            </div>
+            <form id="streamKeyForm" onsubmit="return false;">
+                <div class="control-group">
+                    <label>YouTube Stream Key</label>
+                    <input type="password" id="streamKeyInput" name="streamKey" placeholder="Pode colar aqui sua chave...">
+                </div>
+            </form>
 
             <div class="control-group">
                 <button id="refreshAll">Atualizar Miniaturas</button>
@@ -565,8 +579,9 @@
         }
 
         function getCamUrl(cam, w, h, q, bust = true) {
-            const base = `http://${cam.server}/Interface/Cameras/GetSnapshot?Camera=${cam.name}&AuthUser=associados&AuthPass=socios2013&Width=${w}&Height=${h}&Quality=${q}`;
-            return bust ? `${base}&i=${Math.random()}` : base;
+            const rawUrl = `http://${cam.server}/Interface/Cameras/GetSnapshot?Camera=${cam.name}&AuthUser=associados&AuthPass=socios2013&Width=${w}&Height=${h}&Quality=${q}`;
+            const proxiedUrl = `/api/proxy-snapshot?url=${encodeURIComponent(rawUrl)}`;
+            return bust ? `${proxiedUrl}&i=${Math.random()}` : proxiedUrl;
         }
 
         function startLive(index) {

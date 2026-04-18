@@ -166,6 +166,28 @@ app.post('/api/stream/stop', (req, res) => {
     res.json({ message: 'Stream parado', status: 'idle' });
 });
 
+// Proxy endpoint to fix Mixed Content (HTTP camera images on HTTPS site)
+app.get('/api/proxy-snapshot', async (req, res) => {
+    const { url } = req.query;
+    if (!url) return res.status(400).send('URL is required');
+
+    try {
+        const response = await axios({
+            method: 'get',
+            url: url,
+            responseType: 'stream',
+            timeout: 5000,
+            validateStatus: false
+        });
+
+        res.setHeader('Content-Type', response.headers['content-type'] || 'image/jpeg');
+        res.setHeader('Cache-Control', 'no-cache');
+        response.data.pipe(res);
+    } catch (error) {
+        res.status(500).send('Error proxying image');
+    }
+});
+
 app.get('/api/stream/status', (req, res) => {
     res.json({ 
         status: currentStream.status,
