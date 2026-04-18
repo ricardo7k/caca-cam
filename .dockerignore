@@ -1,0 +1,9 @@
+node_modules
+streamer/node_modules
+.git
+.env
+*.log
+.DS_Store
+.gemini
+active_ips.txt
+ips.txt

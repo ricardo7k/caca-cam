@@ -24,7 +24,7 @@ let currentStream = {
 };
 
 const FPS = process.env.FPS || 10;
-const FFMPEG_PATH = process.env.FFMPEG_PATH || '/opt/homebrew/bin/ffmpeg';
+const FFMPEG_PATH = process.env.FFMPEG_PATH || 'ffmpeg';
 
 function stopCurrentStream() {
     console.log('🛑 Parando stream atual...');
@@ -153,8 +153,8 @@ app.get('/api/stream/status', (req, res) => {
     });
 });
 
-app.listen(port, () => {
-    console.log(`✅ Servidor rodando em http://localhost:${port}`);
+app.listen(port, '0.0.0.0', () => {
+    console.log(`✅ Servidor rodando em http://0.0.0.0:${port}`);
     console.log(`📁 Servindo arquivos estáticos de: ${rootDir}`);
 });
 
