@@ -599,10 +599,18 @@
             });
         }
 
-        function getCamUrl(cam, w, h, q, bust = true) {
+        function getCamUrl(cam, w, h, q, bust = true, forceRaw = false) {
             const rawUrl = `http://${cam.server}/Interface/Cameras/GetSnapshot?Camera=${cam.name}&AuthUser=associados&AuthPass=socios2013&Width=${w}&Height=${h}&Quality=${q}`;
-            const proxiedUrl = `/api/proxy-snapshot?url=${encodeURIComponent(rawUrl)}`;
-            return bust ? `${proxiedUrl}&i=${Math.random()}` : proxiedUrl;
+            
+            // Só usa o proxy se estivermos em HTTPS (evita erro de Mixed Content) ou se não for forçado o link bruto
+            const isHttps = window.location.protocol === 'https:';
+            const useProxy = isHttps && !forceRaw;
+            
+            const baseUrl = useProxy 
+                ? `/api/proxy-snapshot?url=${encodeURIComponent(rawUrl)}` 
+                : rawUrl;
+
+            return bust ? `${baseUrl}&i=${Math.random()}` : baseUrl;
         }
 
         function startLive(index) {
@@ -730,7 +738,7 @@
         async function startStream() {
             if (activeModalCam === null) return;
             const cam = cameras[activeModalCam];
-            const url = getCamUrl(cam, 1280, 720, 80, false); // URL estável para o backend
+            const url = getCamUrl(cam, 1280, 720, 80, false, true); // Força URL bruta (HTTP) para o backend (FFmpeg)
             
             const key = streamKeyInput.value;
             if (!key) {
