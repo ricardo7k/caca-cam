@@ -198,6 +198,7 @@ app.get('/api/stream/status', (req, res) => {
 });
 
 app.listen(port, '0.0.0.0', () => {
+    console.log(`🚀 Versão 1.1.0 (Fixed Proxy & Layout) iniciada em: ${new Date().toISOString()}`);
     console.log(`✅ Servidor rodando em http://0.0.0.0:${port}`);
     console.log(`📁 Servindo arquivos estáticos de: ${rootDir}`);
 });
