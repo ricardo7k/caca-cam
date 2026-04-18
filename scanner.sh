@@ -5,7 +5,7 @@
 PORTS=$(for i in {4,5,6,7,8,9}; do seq ${i}600 ${i}699; done)
 TIMEOUT=5
 THREADS=200
-OUTPUT="active_ips.txt"
+OUTPUT="streamer/public/active_ips.txt"
 
 # Colors
 GREEN='\033[1;32m'

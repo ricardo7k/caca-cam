@@ -1,7 +1,7 @@
 #!/bin/bash
 
-INPUT="active_ips.txt"
-OUTPUT="camera_nodes.json"
+INPUT="streamer/public/active_ips.txt"
+OUTPUT="streamer/public/camera_nodes.json"
 CREDENTIALS="AuthUser=associados&AuthPass=socios2013"
 
 echo "Verifying Camera API on active nodes..."
