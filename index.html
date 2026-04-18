@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paineras Cam</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos adicionais para o Modal e Interação */
+        .camera-card {
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .camera-card.is-live {
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+        }
+
+        .camera-card.is-streaming-yt {
+            border-color: #ff0000;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.6);
+            transform: scale(1.02);
+            z-index: 10;
+        }
+
+        .live-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 242, 254, 0.8); /* Cyan for Local */
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.6rem;
+            font-weight: 800;
+            display: none;
+            z-index: 5;
+        }
+
+        .yt-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: #ff0000;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.6rem;
+            font-weight: 800;
+            display: none;
+            z-index: 10;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.6);
+            animation: pulse-red-badge 1s infinite alternate;
+        }
+
+        @keyframes pulse-red-badge {
+            from { transform: scale(1); opacity: 1; }
+            to { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        .camera-card.is-streaming-yt .yt-badge {
+            display: block;
+        }
+
+        .camera-card:hover .live-indicator,
+        .camera-card.is-live .live-indicator {
+            display: block;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        /* Button Stream */
+        .stream-btn {
+            background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+        }
+
+        .stream-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .stream-btn.is-streaming {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+            animation: pulse-stream 2s infinite;
+        }
+
+        #globalStopBtn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            animation: pulse-red 2s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        @keyframes pulse-stream {
+            0% { opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { opacity: 1; }
+        }
+
+        /* Camera Grid & Headers */
+        .server-group {
+            margin-bottom: 1rem;
+        }
+
+        .server-header {
+            grid-column: 1 / -1;
+            padding: 1.5rem 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(to right, rgba(0, 242, 254, 0.05), transparent);
+            cursor: pointer;
+            border-radius: 8px;
+            transition: 0.2s;
+            user-select: none;
+        }
+
+        .server-header:hover {
+            background: linear-gradient(to right, rgba(0, 242, 254, 0.1), transparent);
+        }
+
+        .server-header h2 {
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--primary);
+            letter-spacing: 0.15rem;
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        .group-arrow {
+            transition: 0.3s;
+            font-size: 0.8rem;
+            color: var(--primary);
+            opacity: 0.7;
+        }
+
+        .server-content {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            padding: 1.5rem 0;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .server-content.collapsed {
+            display: none;
+        }
+
+        .server-header.collapsed .group-arrow {
+            transform: rotate(-90deg);
+        }
+
+        /* Camera Grid adjustments */
+        #mainGrid {
+            display: block; /* Section groups will handle their own grids */
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(15px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 2rem;
+        }
+
+        .modal-content {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 90vw;
+            max-width: 1280px;
+            aspect-ratio: 16 / 9;
+            max-height: 85vh;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+            z-index: 1001;
+        }
+
+        .modal-content.is-loading .modal-body {
+            animation: scan-pulse 1s infinite alternate;
+        }
+
+        @keyframes scan-pulse {
+            from {
+                background: #000;
+                opacity: 1;
+            }
+
+            to {
+                background: #1a1a1a;
+                opacity: 0.8;
+            }
+        }
+
+        .modal-header {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-close {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            color: var(--text);
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 8px;
+            transition: 0.3s;
+        }
+
+        .modal-body {
+            flex: 1;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .modal-body img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: opacity 0.3s;
+        }
+
+        .modal-body img.loading {
+            opacity: 0;
+        }
+
+        /* Menu de Celular (Hamburger) */
+        .mobile-header {
+            display: none;
+            padding: 1rem;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .menu-toggle {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 600px) {
+            .mobile-header {
+                display: flex;
+            }
+
+            .sidebar {
+                position: fixed;
+                right: -100%;
+                top: 0;
+                width: 280px;
+                height: 100vh;
+                z-index: 200;
+                transition: 0.3s;
+                box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+            }
+
+            .sidebar.is-open {
+                right: 0;
+            }
+
+            .dashboard {
+                display: block;
+            }
+
+            .main {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="mobile-header">
+        <div class="logo" style="margin-bottom: 0;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
+            </svg>
+            Cameras
+        </div>
+        <button class="menu-toggle" id="menuToggle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
+    </div>
+
+    <div class="dashboard">
+        <aside class="sidebar" id="sidebar">
+            <div class="control-group">
+                <label>Refresh Live (ms)</label>
+                <input type="number" id="interval" value="100" min="50">
+            </div>
+
+            <div class="control-group">
+                <label>Qualidade Live</label>
+                <input type="range" id="quality" min="10" max="95" value="60">
+            </div>
+
+            <div class="control-group">
+                <label>YouTube Stream Key</label>
+                <input type="password" id="streamKeyInput" placeholder="Pode colar aqui sua chave...">
+            </div>
+
+            <div class="control-group">
+                <button id="refreshAll">Atualizar Miniaturas</button>
+                <button id="globalStopBtn">🔴 Parar Transmissão</button>
+            </div>
+            
+            <button onclick="localStorage.removeItem('discoveredCams'); location.reload();"
+                style="margin-top: 10px; display: none;" id="resetBtn" class="secondary">Resetar Lista</button>
+
+            <!-- Botão de descoberta escondido conforme pedido -->
+            <div style="margin-top: auto; display: none;">
+                <button onclick="location.href='discover.html'" class="secondary" style="width: 100%">Abrir
+                    Descoberta</button>
+            </div>
+        </aside>
+
+        <main class="main">
+            <header class="header">
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="value" id="countActive">0</div>
+                        <div class="label">Câmeras</div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="camera-grid" id="mainGrid">
+                <!-- Feeds aparecerão aqui -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal para visualização ampliada -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-content" id="modalContainer">
+            <div class="modal-header">
+                <div>
+                    <h3 id="modalTitle">Camera Name</h3>
+                    <p id="modalSub" class="cam-ip">IP Address</p>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <button class="stream-btn" id="startStreamBtn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path>
+                            <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon>
+                        </svg>
+                        Transmitir
+                    </button>
+                    <button class="modal-close" id="modalClose">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <img id="modalImg" src="" alt="Enlarged view" class="loading">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const mainGrid = document.getElementById('mainGrid');
+        const countActive = document.getElementById('countActive');
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modalContainer = document.getElementById('modalContainer');
+        const modalImg = document.getElementById('modalImg');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalSub = document.getElementById('modalSub');
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const startStreamBtn = document.getElementById('startStreamBtn');
+        const globalStopBtn = document.getElementById('globalStopBtn');
+        const streamKeyInput = document.getElementById('streamKeyInput');
+
+        // Carrega chave salva
+        streamKeyInput.value = localStorage.getItem('ytStreamKey') || '';
+        streamKeyInput.onchange = () => localStorage.setItem('ytStreamKey', streamKeyInput.value);
+
+        // Toggle menu lateral no mobile
+        menuToggle.onclick = () => {
+            sidebar.classList.toggle('is-open');
+        };
+
+        // Fecha ao clicar fora (no mobile)
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 600 && !sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+                sidebar.classList.remove('is-open');
+            }
+        });
+
+        let cameras = [];
+        let liveLoops = {};
+        let activeModalCam = null;
+        let modalInterval = null;
+
+        async function init() {
+            const saved = localStorage.getItem('discoveredCams');
+            if (saved && JSON.parse(saved).length > 0) {
+                cameras = JSON.parse(saved);
+            } else {
+                try {
+                    const res = await fetch('discovered_cameras.json');
+                    cameras = await res.json();
+                    localStorage.setItem('discoveredCams', JSON.stringify(cameras));
+                } catch (e) {
+                    console.error("Erro ao carregar câmeras padrão:", e);
+                }
+            }
+
+            countActive.innerText = cameras.length;
+            renderCameras();
+        }
+
+        function renderCameras() {
+            mainGrid.innerHTML = '';
+            
+            const sortedCams = [...cameras].sort((a, b) => 
+                a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+            );
+
+            const groups = {};
+            sortedCams.forEach(cam => {
+                const parts = cam.name.split('-');
+                let group = 'OUTROS';
+                if (parts.length > 1) {
+                    group = parts[parts.length - 1].replace('%20', '').trim().toUpperCase();
+                }
+                if (!groups[group]) groups[group] = [];
+                groups[group].push(cam);
+            });
+
+            Object.keys(groups).sort().forEach(groupName => {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'server-group';
+
+                const header = document.createElement('div');
+                header.className = 'server-header collapsed';
+                header.innerHTML = `<h2>SERVIDOR: ${groupName}</h2><span class="group-arrow">▼</span>`;
+                
+                const content = document.createElement('div');
+                content.className = 'server-content collapsed';
+
+                header.onclick = () => {
+                    const isCollapsed = content.classList.toggle('collapsed');
+                    header.classList.toggle('collapsed');
+                    
+                    if (!isCollapsed) {
+                        // Inicia carregamento das imagens ao abrir
+                        content.querySelectorAll('img[data-src]').forEach(img => {
+                            img.src = img.dataset.src;
+                            img.removeAttribute('data-src');
+                        });
+                    }
+                };
+
+                groups[groupName].forEach((cam) => {
+                    const originalIndex = cameras.indexOf(cam);
+                    const card = document.createElement('div');
+                    card.className = 'camera-card';
+                    card.id = `card-${originalIndex}`;
+
+                    card.innerHTML = `
+                        <div class="camera-preview">
+                            <img id="img-${originalIndex}" data-src="${getCamUrl(cam, 400, 300, 30)}" alt="${cam.name}" class="loading">
+                            <div class="live-indicator">LOCAL LIVE</div>
+                            <div class="yt-badge">YOUTUBE LIVE</div>
+                            <div style="position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.5); padding: 4px 8px; border-radius: 4px; font-size: 0.6rem; z-index: 5;">${cam.name}</div>
+                        </div>
+                    `;
+
+                    card.onmouseenter = () => {
+                        // Apenas inicia live se estiver expandido
+                        if (!content.classList.contains('collapsed')) {
+                            startLive(originalIndex);
+                        }
+                    };
+                    card.onmouseleave = () => stopLive(originalIndex);
+                    card.onclick = () => openModal(originalIndex);
+
+                    content.appendChild(card);
+                });
+
+                groupDiv.appendChild(header);
+                groupDiv.appendChild(content);
+                mainGrid.appendChild(groupDiv);
+            });
+        }
+
+        function getCamUrl(cam, w, h, q, bust = true) {
+            const base = `http://${cam.server}/Interface/Cameras/GetSnapshot?Camera=${cam.name}&AuthUser=associados&AuthPass=socios2013&Width=${w}&Height=${h}&Quality=${q}`;
+            return bust ? `${base}&i=${Math.random()}` : base;
+        }
+
+        function startLive(index) {
+            if (liveLoops[index]) return;
+            const card = document.getElementById(`card-${index}`);
+            card.classList.add('is-live');
+
+            const refresh = () => {
+                const img = document.getElementById(`img-${index}`);
+                const ms = document.getElementById('interval').value;
+                const quality = document.getElementById('quality').value;
+                const temp = new Image();
+                temp.onload = () => { if (img) img.src = temp.src; };
+                temp.src = getCamUrl(cameras[index], 400, 300, quality);
+                liveLoops[index] = setTimeout(refresh, ms);
+            };
+            refresh();
+        }
+
+        function stopLive(index) {
+            if (liveLoops[index]) {
+                clearTimeout(liveLoops[index]);
+                delete liveLoops[index];
+            }
+            const card = document.getElementById(`card-${index}`);
+            card.classList.remove('is-live');
+        }
+
+        function openModal(index) {
+            const cam = cameras[index];
+            activeModalCam = index;
+            modalOverlay.style.display = 'flex';
+            modalTitle.innerText = cam.name;
+            modalSub.innerText = cam.server;
+
+            modalContainer.classList.add('is-loading');
+            modalImg.classList.add('loading');
+
+            const updateModal = () => {
+                if (activeModalCam !== index) return;
+
+                const temp = new Image();
+                temp.onload = () => {
+                    if (activeModalCam === index) {
+                        modalImg.src = temp.src;
+                        modalImg.classList.remove('loading');
+                        modalContainer.classList.remove('is-loading');
+                    }
+                };
+                temp.src = getCamUrl(cam, 1280, 720, 80);
+                modalInterval = setTimeout(updateModal, 100);
+            };
+            updateModal();
+            syncUIStatus();
+        }
+
+        async function syncUIStatus() {
+            try {
+                const res = await fetch('/api/stream/status');
+                const data = await res.json();
+                
+                // 1. Sidebar Global Button
+                if (data.status === 'streaming') {
+                    globalStopBtn.style.display = 'flex';
+                } else {
+                    globalStopBtn.style.display = 'none';
+                }
+
+                // 2. Loop through all cameras to sync grid cards
+                cameras.forEach((cam, i) => {
+                    const card = document.getElementById(`card-${i}`);
+                    if (!card) return;
+
+                    const isStreamingThis = data.status === 'streaming' && 
+                                            data.server === cam.server && 
+                                            data.cameraName === cam.name;
+
+                    if (isStreamingThis) {
+                        card.classList.add('is-streaming-yt');
+                    } else {
+                        card.classList.remove('is-streaming-yt');
+                    }
+
+                    // 3. Sync Modal if open
+                    if (activeModalCam === i) {
+                        if (isStreamingThis) {
+                            startStreamBtn.innerHTML = `<span>🛑</span> Parar Transmissão`;
+                            startStreamBtn.classList.add('is-streaming');
+                            startStreamBtn.onclick = stopStream;
+                            startStreamBtn.disabled = false;
+                        } else {
+                            resetStreamButton();
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error("Erro ao sincronizar status:", e);
+            }
+        }
+
+        async function checkStreamStatus(cam) {
+            // Deprecated in favor of global syncUIStatus
+            syncUIStatus();
+        }
+
+        function resetStreamButton() {
+            startStreamBtn.innerHTML = `
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path>
+                    <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon>
+                </svg>
+                Transmitir
+            `;
+            startStreamBtn.classList.remove('is-streaming');
+            startStreamBtn.onclick = startStream;
+            startStreamBtn.disabled = false;
+        }
+
+        async function startStream() {
+            if (activeModalCam === null) return;
+            const cam = cameras[activeModalCam];
+            const url = getCamUrl(cam, 1280, 720, 80, false); // URL estável para o backend
+            
+            const key = streamKeyInput.value;
+            if (!key) {
+                alert("Por favor, insira a Chave de Transmissão na barra lateral antes de começar.");
+                sidebar.classList.add('is-open'); // Abre sidebar no mobile se estiver fechada
+                streamKeyInput.focus();
+                return;
+            }
+
+            startStreamBtn.innerText = "Conectando...";
+            startStreamBtn.disabled = true;
+
+            try {
+                const res = await fetch('/api/stream/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        cameraUrl: url, 
+                        streamKey: key, 
+                        server: cam.server, 
+                        cameraName: cam.name 
+                    })
+                });
+                const data = await res.json();
+                if (data.status === 'streaming') {
+                    syncUIStatus();
+                }
+            } catch (e) {
+                alert("Erro ao iniciar transmissão");
+                resetStreamButton();
+            }
+        }
+
+        async function stopStream() {
+            startStreamBtn.innerText = "Parando...";
+            startStreamBtn.disabled = true;
+            try {
+                await fetch('/api/stream/stop', { method: 'POST' });
+                syncUIStatus();
+            } catch (e) {
+                alert("Erro ao parar transmissão");
+                resetStreamButton();
+            }
+        }
+
+        globalStopBtn.onclick = stopStream;
+
+        // Poll global status every 2 seconds
+        setInterval(syncUIStatus, 2000);
+
+        function closeModal() {
+            modalOverlay.style.display = 'none';
+            if (modalInterval) {
+                clearTimeout(modalInterval);
+                modalInterval = null;
+            }
+            activeModalCam = null;
+            modalImg.src = "";
+        }
+
+        document.getElementById('modalClose').onclick = closeModal;
+        modalOverlay.onclick = (e) => { if (e.target === modalOverlay) closeModal(); };
+
+        document.getElementById('refreshAll').onclick = renderCameras;
+
+        init();
+    </script>
+</body>
+
+</html>
