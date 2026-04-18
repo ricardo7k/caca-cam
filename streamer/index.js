@@ -120,11 +120,12 @@ app.post('/api/stream/start', (req, res) => {
         
         '-c:v', 'libx264',
         '-pix_fmt', 'yuv420p',
-        '-preset', 'veryfast',
-        '-b:v', '2500k',                    
-        '-maxrate', '2500k',
-        '-bufsize', '5000k',
-        '-g', (parseInt(FPS) * 2).toString(),
+        '-preset', 'ultrafast',
+        '-tune', 'zerolatency',
+        '-b:v', '1500k',
+        '-maxrate', '1500k',
+        '-bufsize', '3000k',
+        '-g', '20',
         
         '-c:a', 'aac',                      
         '-b:a', '128k',                     
@@ -184,7 +185,8 @@ app.get('/api/proxy-snapshot', async (req, res) => {
         res.setHeader('Cache-Control', 'no-cache');
         response.data.pipe(res);
     } catch (error) {
-        res.status(500).send('Error proxying image');
+        console.error(`❌ Proxy error for ${url}:`, error.message);
+        res.status(500).send(`Error proxying image: ${error.message}`);
     }
 });
 

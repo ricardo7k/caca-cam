@@ -374,7 +374,7 @@
         <aside class="sidebar" id="sidebar">
             <div class="control-group">
                 <label>Refresh Live (ms)</label>
-                <input type="number" id="interval" value="100" min="50">
+                <input type="number" id="interval" value="500" min="50">
             </div>
 
             <div class="control-group">
@@ -484,6 +484,27 @@
         let liveLoops = {};
         let activeModalCam = null;
         let modalInterval = null;
+        let isTabActive = true;
+
+        // Visibility API: Pausa tudo se não estiver vendo a página
+        document.addEventListener('visibilitychange', () => {
+            isTabActive = !document.hidden;
+            if (!isTabActive) {
+                console.log("💤 Dashboard em standby para economizar recursos.");
+                // Para o intervalo do modal se existir
+                if (modalInterval) {
+                   clearTimeout(modalInterval);
+                   modalInterval = null;
+                }
+            } else {
+                console.log("🌞 Dashboard ativo novamente.");
+                syncUIStatus();
+                // Retoma modal se estiver aberto
+                if (activeModalCam !== null) {
+                    openModal(activeModalCam); 
+                }
+            }
+        });
 
         async function init() {
             const saved = localStorage.getItem('discoveredCams');
@@ -590,6 +611,10 @@
             card.classList.add('is-live');
 
             const refresh = () => {
+                if (!isTabActive) {
+                    liveLoops[index] = setTimeout(refresh, 1000);
+                    return;
+                }
                 const img = document.getElementById(`img-${index}`);
                 const ms = document.getElementById('interval').value;
                 const quality = document.getElementById('quality').value;
@@ -632,7 +657,9 @@
                     }
                 };
                 temp.src = getCamUrl(cam, 1280, 720, 80);
-                modalInterval = setTimeout(updateModal, 100);
+                if (isTabActive) {
+                    modalInterval = setTimeout(updateModal, 150);
+                }
             };
             updateModal();
             syncUIStatus();
@@ -751,8 +778,10 @@
 
         globalStopBtn.onclick = stopStream;
 
-        // Poll global status every 2 seconds
-        setInterval(syncUIStatus, 2000);
+        // Poll global status every 5 seconds (more efficient)
+        setInterval(() => {
+            if (isTabActive) syncUIStatus();
+        }, 5000);
 
         function closeModal() {
             modalOverlay.style.display = 'none';
