@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saga Cam | Discovery</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Discovery
+            </div>
+
+            <div class="control-group">
+                <label>Target Server (IP:Port)</label>
+                <input type="text" id="manualServer" placeholder="e.g. 177.8.172.52:9601">
+            </div>
+
+            <div class="control-group">
+                <label>Range (CAMXXX)</label>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="number" id="camStart" value="0" style="width: 70px;">
+                    <span style="align-self: center;">to</span>
+                    <input type="number" id="camEnd" value="120" style="width: 70px;">
+                </div>
+            </div>
+
+            <button id="startScan">Iniciar Busca Total</button>
+            <button id="stopScan" class="secondary">Parar</button>
+
+            <div class="progress-container">
+                <label>Progresso da Descoberta</label>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar"></div>
+                </div>
+                <div id="statusText" style="font-size: 0.75rem; color: var(--text-muted)">Aguardando...</div>
+                <div class="scroll-area" id="log">
+                    [Sistema Pronto]
+                </div>
+            </div>
+
+            <div style="margin-top: auto;">
+                <button onclick="location.href='index.html'" class="secondary" style="width: 100%">Ir para o Painel</button>
+                <button onclick="localStorage.removeItem('discoveredCams'); location.reload();" class="secondary" style="width: 100%; margin-top: 5px;">Limpar Descobertas</button>
+            </div>
+        </aside>
+
+        <main class="main">
+            <header class="header">
+                <h1>Hub de Descoberta</h1>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="value" id="countFound">0</div>
+                        <div class="label">Encontradas</div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="camera-grid" id="discoveryGrid">
+                <!-- Imagens encontradas aparecerão aqui -->
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const discoveryGrid = document.getElementById('discoveryGrid');
+        const log = document.getElementById('log');
+        const countFound = document.getElementById('countFound');
+        const progressBar = document.getElementById('progressBar');
+        const statusText = document.getElementById('statusText');
+        
+        let foundCameras = JSON.parse(localStorage.getItem('discoveredCams') || '[]');
+        let isScanning = false;
+
+        function updateUI() {
+            countFound.innerText = foundCameras.length;
+        }
+
+        function addLog(msg) {
+            const entry = document.createElement('div');
+            entry.innerText = `> ${msg}`;
+            log.prepend(entry);
+        }
+
+        async function checkCamera(server, camId) {
+            const [ip, port] = server.split(':');
+            const variants = ['', '%20'];
+            const suffixes = ['svr1', 'svr2', 'svr3', 'svr4', 'svr5'];
+            
+            for (let v of variants) {
+                for (let s of suffixes) {
+                    if (!isScanning) return;
+                    const finalName = `${camId}-${v}${s}`;
+                    const url = `http://${ip}:${port}/Interface/Cameras/GetSnapshot?Camera=${finalName}&AuthUser=associados&AuthPass=socios2013&Width=400&Height=300&Quality=50&i=${Math.random()}`;
+                    
+                    try {
+                        const success = await new Promise((resolve) => {
+                            const img = new Image();
+                            const timer = setTimeout(() => {
+                                img.src = ""; // cancel load
+                                resolve(false);
+                            }, 5000); // 5s timeout por imagem
+
+                            img.onload = () => {
+                                clearTimeout(timer);
+                                resolve(true);
+                            };
+                            img.onerror = () => {
+                                clearTimeout(timer);
+                                resolve(false);
+                            };
+                            img.src = url;
+                        });
+
+                        if (success) {
+                            addLog(`OK: ${finalName} em ${server}`);
+                            saveFound(server, finalName);
+                            // Se achou, geralmente não precisa testar outras variações do mesmo CAMxxx no mesmo server
+                            return true; 
+                        }
+                    } catch (e) { }
+                }
+            }
+            return false;
+        }
+
+        function saveFound(server, camName) {
+            if (!foundCameras.find(c => c.server === server && c.name === camName)) {
+                foundCameras.push({ server, name: camName });
+                localStorage.setItem('discoveredCams', JSON.stringify(foundCameras));
+                renderCard({ server, name: camName });
+                updateUI();
+            }
+        }
+
+        function renderCard(cam) {
+            const card = document.createElement('div');
+            card.className = 'camera-card';
+            const url = `http://${cam.server}/Interface/Cameras/GetSnapshot?Camera=${cam.name}&AuthUser=associados&AuthPass=socios2013&Width=400&Height=300&Quality=50&i=${Math.random()}`;
+            
+            card.innerHTML = `
+                <div class="camera-preview">
+                    <img src="${url}" alt="${cam.name}">
+                </div>
+                <div class="camera-info">
+                    <div>
+                        <div class="cam-name">${cam.name}</div>
+                        <div class="cam-ip">${cam.server}</div>
+                    </div>
+                    <span class="status-badge status-online">Ativa</span>
+                </div>
+            `;
+            discoveryGrid.prepend(card);
+        }
+
+        async function scanNode(server, start, end) {
+            addLog(`Iniciando varredura em ${server}...`);
+            const total = end - start + 1;
+            for (let i = start; i <= end; i++) {
+                if (!isScanning) break;
+                const camId = `CAM${i.toString().padStart(3, '0')}`;
+                statusText.innerText = `Testando ${camId} em ${server}`;
+                progressBar.style.width = `${((i - start + 1) / total) * 100}%`;
+                
+                await checkCamera(server, camId);
+                // Pequena pausa para o navegador não travar
+                await new Promise(r => setTimeout(r, 30));
+            }
+        }
+
+        document.getElementById('startScan').onclick = async () => {
+            if (isScanning) return;
+            isScanning = true;
+            document.getElementById('startScan').innerText = 'Buscando...';
+            
+            const manual = document.getElementById('manualServer').value;
+            const start = parseInt(document.getElementById('camStart').value);
+            const end = parseInt(document.getElementById('camEnd').value);
+
+            if (!manual) {
+                try {
+                    const res = await fetch('camera_nodes.json');
+                    const nodes = await res.json();
+                    addLog(`Processando ${nodes.length} servidores encontrados no scan.`);
+                    for(let node of nodes) {
+                        if (!isScanning) break;
+                        await scanNode(`${node.ip}:${node.port}`, start, end);
+                    }
+                } catch(e) {
+                    alert('Erro: Certifique-se de rodar os scripts shell primeiro ou insira no campo IP:Porta.');
+                    isScanning = false;
+                }
+            } else {
+                await scanNode(manual, start, end);
+            }
+
+            isScanning = false;
+            document.getElementById('startScan').innerText = 'Iniciar Busca Total';
+            statusText.innerText = 'Busca Finalizada';
+            addLog('Escaneamento concluído.');
+        };
+
+        document.getElementById('stopScan').onclick = () => {
+            isScanning = false;
+            addLog('Busca interrompida pelo usuário.');
+        };
+
+        // Carregar as já encontradas
+        foundCameras.forEach(renderCard);
+        updateUI();
+    </script>
+</body>
+</html>

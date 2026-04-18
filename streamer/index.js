@@ -9,29 +9,13 @@ const port = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Serve static files from the root directory - Robust search
-const fs = require('fs');
-let rootDir = __dirname;
-// Subir até encontrar o index.html ou chegar na raiz do sistema
-while (rootDir !== '/' && !fs.existsSync(path.join(rootDir, 'index.html'))) {
-    const parent = path.dirname(rootDir);
-    if (parent === rootDir) break; // Evita loop infinito
-    rootDir = parent;
-}
-
-console.log(`🔍 Root detectado em: ${rootDir}`);
-console.log(`📄 index.html encontrado: ${fs.existsSync(path.join(rootDir, 'index.html'))}`);
-
+// Serve static files from the internal public directory
+const rootDir = path.join(__dirname, 'public');
 app.use(express.static(rootDir));
 
-// Explicit route for the index page to prevent 404s in some environments
+// Explicit route for the index page
 app.get('/', (req, res) => {
-    const indexPath = path.join(rootDir, 'index.html');
-    if (fs.existsSync(indexPath)) {
-        res.sendFile(indexPath);
-    } else {
-        res.status(404).send(`Error: index.html not found. Root determined as: ${rootDir}`);
-    }
+    res.sendFile(path.join(rootDir, 'index.html'));
 });
 
 // Diagnostic endpoint

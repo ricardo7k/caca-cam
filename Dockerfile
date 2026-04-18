@@ -1,32 +1,28 @@
-# Build stage for frontend assets (optional if we just serve static files)
-# For this project, we serve from root, so a single stage is fine.
-
-# 1. Use Node.js 18 slim image
+# Use Node.js 18 slim image
 FROM node:18-slim
 
-# 2. Install FFmpeg and clean up apt cache to keep image small
+# Install FFmpeg
 RUN apt-get update && \
     apt-get install -y ffmpeg && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# 3. Set work directory
+# Set work directory directly to the streamer folder
 WORKDIR /app
 
-# 4. Copy current directory into container
+# Copy the entire project for context
 COPY . .
 
-# 5. Move to streamer directory and install dependencies
+# Move into the server directory
 WORKDIR /app/streamer
+
+# Install dependencies
 RUN npm install
 
-# 6. Set environment variables
+# Set environment variables
+ENV HOST=0.0.0.0
 ENV PORT=8080
 ENV FFMPEG_PATH=ffmpeg
-ENV FPS=10
 
-# 7. Cloud Run requires the app to listen on the $PORT variable
-# Our index.js already does this (via process.env.PORT)
-
-# 8. Start the server
+# Start the server
 CMD ["node", "index.js"]
