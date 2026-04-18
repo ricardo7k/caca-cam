@@ -4,9 +4,9 @@ const { Firestore } = require('@google-cloud/firestore');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
 
-// 🔍 Log da versão para diagnóstico
-console.log('🔍 compute module keys:', Object.keys(compute));
-console.log('🔍 InstancesClient?', typeof compute.InstancesClient);
+// 📌 Versão da API - para confirmar deploy
+const API_VERSION = '2.1.0';
+console.log(`🚀 api-control v${API_VERSION} carregada`);
 
 // Inicialização Global mínima
 if (admin.apps.length === 0) {
@@ -192,85 +192,60 @@ async function getStatus(req, res, db) {
     const streamDoc = await db.collection('system').doc('current_stream').get();
 
     if (!streamDoc.exists) {
-        return res.json({ status: 'idle' });
+        return res.json({ status: 'idle', version: API_VERSION });
     }
 
     const data = streamDoc.data();
     const { vmName, status, cameraName, server } = data;
+    const startTime = data.startTime?.toDate ? data.startTime.toDate() : new Date(data.startTime);
+    const elapsed = Math.round((Date.now() - startTime.getTime()) / 1000);
 
-    // Se já foi marcado como 'streaming' pelo startup-script, retorna diretamente
-    if (status === 'streaming') {
-        // Verifica se a VM ainda existe (pode ter sido preemptada)
-        try {
-            const [instance] = await instancesClient.get({
-                project: PROJECT_ID,
-                zone: ZONE,
-                instance: vmName,
-            });
-            if (instance.status === 'RUNNING') {
-                return res.json({ status: 'streaming', vmName, cameraName, server, vmStatus: 'RUNNING' });
-            } else if (instance.status === 'TERMINATED' || instance.status === 'STOPPED') {
-                // VM foi preemptada ou parou
-                console.log(`⚠️ VM ${vmName} foi preemptada (status: ${instance.status}). Limpando...`);
-                await db.collection('system').doc('current_stream').delete();
-                try { await instancesClient.delete({ project: PROJECT_ID, zone: ZONE, instance: vmName }); } catch (e) { }
-                return res.json({ status: 'idle' });
-            }
-            // Outros estados (STAGING, etc)
-            return res.json({ status: 'streaming', vmName, cameraName, server, vmStatus: instance.status });
-        } catch (e) {
-            // VM não encontrada — foi deletada
-            console.log(`⚠️ VM ${vmName} não encontrada. Limpando Firestore...`);
-            await db.collection('system').doc('current_stream').delete();
-            return res.json({ status: 'idle' });
-        }
+    // Tenta verificar o estado real da VM no GCE
+    let vmStatus = 'UNKNOWN';
+    let vmExists = false;
+
+    try {
+        const [instance] = await instancesClient.get({
+            project: PROJECT_ID,
+            zone: ZONE,
+            instance: vmName,
+        });
+        vmStatus = instance.status;
+        vmExists = true;
+        console.log(`🔍 VM ${vmName}: GCE=${vmStatus}, Firestore=${status}, elapsed=${elapsed}s`);
+    } catch (e) {
+        console.warn(`⚠️ VM ${vmName} não encontrada no GCE:`, e.message);
+        // VM não existe mais — limpa o Firestore
+        await db.collection('system').doc('current_stream').delete();
+        return res.json({ status: 'idle', version: API_VERSION });
     }
 
-    // Se o status é 'starting', verifica se a VM já subiu
-    if (status === 'starting') {
-        try {
-            const [instance] = await instancesClient.get({
-                project: PROJECT_ID,
-                zone: ZONE,
-                instance: vmName,
-            });
-            console.log(`🔍 VM ${vmName} status: ${instance.status}`);
-
-            if (instance.status === 'RUNNING') {
-                // VM está rodando! Verifica há quanto tempo (se >60s, assume que FFmpeg já iniciou)
-                const startTime = data.startTime?.toDate ? data.startTime.toDate() : new Date(data.startTime);
-                const elapsed = (Date.now() - startTime.getTime()) / 1000;
-
-                if (elapsed > 90) {
-                    // Após 90s, assume que apt-get + ffmpeg já iniciaram
-                    console.log(`✅ VM ${vmName} rodando há ${Math.round(elapsed)}s. Marcando como streaming.`);
-                    await db.collection('system').doc('current_stream').update({
-                        status: 'streaming',
-                        updatedAt: new Date(),
-                    });
-                    return res.json({ status: 'streaming', vmName, cameraName, server, vmStatus: 'RUNNING' });
-                }
-
-                return res.json({ status: 'starting', vmName, cameraName, server, vmStatus: 'RUNNING', elapsed: Math.round(elapsed) });
-            } else if (instance.status === 'TERMINATED' || instance.status === 'STOPPED') {
-                console.log(`❌ VM ${vmName} falhou ao iniciar (status: ${instance.status}).`);
-                await db.collection('system').doc('current_stream').delete();
-                try { await instancesClient.delete({ project: PROJECT_ID, zone: ZONE, instance: vmName }); } catch (e) { }
-                return res.json({ status: 'idle' });
-            }
-
-            // STAGING, PROVISIONING, etc.
-            return res.json({ status: 'starting', vmName, cameraName, server, vmStatus: instance.status });
-        } catch (e) {
-            console.warn(`⚠️ VM ${vmName} não encontrada durante verificação:`, e.message);
-            // VM não existe mais
-            await db.collection('system').doc('current_stream').delete();
-            return res.json({ status: 'idle' });
-        }
+    // VM existe mas foi terminada/parada
+    if (vmStatus === 'TERMINATED' || vmStatus === 'STOPPED') {
+        console.log(`❌ VM ${vmName} ${vmStatus}. Limpando...`);
+        await db.collection('system').doc('current_stream').delete();
+        try { await instancesClient.delete({ project: PROJECT_ID, zone: ZONE, instance: vmName }); } catch (e) { }
+        return res.json({ status: 'idle', version: API_VERSION });
     }
 
-    // Fallback
-    res.json(data);
+    // VM está rodando!
+    if (vmStatus === 'RUNNING') {
+        // Após 45s de VM RUNNING, assume que FFmpeg já está transmitindo
+        if (elapsed > 45 || status === 'streaming') {
+            if (status !== 'streaming') {
+                console.log(`✅ VM ${vmName} rodando há ${elapsed}s. Promovendo para streaming.`);
+                await db.collection('system').doc('current_stream').update({
+                    status: 'streaming',
+                    updatedAt: new Date(),
+                });
+            }
+            return res.json({ status: 'streaming', vmName, cameraName, server, vmStatus, elapsed, version: API_VERSION });
+        }
+        return res.json({ status: 'starting', vmName, cameraName, server, vmStatus, elapsed, version: API_VERSION });
+    }
+
+    // STAGING, PROVISIONING, etc.
+    return res.json({ status: 'starting', vmName, cameraName, server, vmStatus, elapsed, version: API_VERSION });
 }
 
 async function manageWhitelist(req, res, db) {

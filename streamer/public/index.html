@@ -1136,6 +1136,7 @@
             if (!idToken) return;
             try {
                 const data = await fetchAPI('status');
+                console.log('📡 Status API:', JSON.stringify(data));
                 const isStreaming = data.status === 'streaming';
                 const isStarting = data.status === 'starting';
 
