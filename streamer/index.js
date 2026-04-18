@@ -10,8 +10,30 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 
 // Serve static files from the root directory
-const rootDir = path.join(__dirname, '..');
+const rootDir = path.resolve(__dirname, '..');
 app.use(express.static(rootDir));
+
+// Explicit route for the index page to prevent 404s in some environments
+app.get('/', (req, res) => {
+    res.sendFile(path.join(rootDir, 'index.html'));
+});
+
+// Diagnostic endpoint
+app.get('/api/debug/paths', (req, res) => {
+    const fs = require('fs');
+    try {
+        res.json({
+            status: 'ok',
+            __dirname,
+            cwd: process.cwd(),
+            rootDir,
+            exists: fs.existsSync(path.join(rootDir, 'index.html')),
+            filesInRootDir: fs.existsSync(rootDir) ? fs.readdirSync(rootDir) : 'DIR NOT FOUND'
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 
 let currentStream = {
     ffmpeg: null,
