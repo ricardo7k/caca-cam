@@ -1,0 +1,12 @@
+name: main-deploy
+description: "Deploy microservices and hosting on push to main"
+github:
+  owner: ricardo7k
+  name: caca-cam
+  push:
+    branch: "^main$"
+filename: cloudbuild.yaml
+includedFiles:
+  - "**"
+tags:
+  - automated-deploy
