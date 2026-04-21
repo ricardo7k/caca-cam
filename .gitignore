@@ -2,3 +2,4 @@ node_modules/
 .DS_Store
 .env
 *.log
+streamer/public/firebase-config.js

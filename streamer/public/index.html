@@ -724,19 +724,22 @@
 
         const API_BASE_CONTROL = isLocal ? REMOTE_CONTROL : '/api/control';
         const API_BASE_PROXY = isLocal ? REMOTE_PROXY : '/api/proxy';
+    </script>
 
-        // --- FIREBASE SETUP ---
-        const firebaseConfig = {
-            apiKey: "REMOVED_SECRET",
-            authDomain: "paineiras-cam.firebaseapp.com",
-            projectId: "paineiras-cam",
-            storageBucket: "paineiras-cam.firebasestorage.app",
-            messagingSenderId: "682764541304",
-            appId: "1:682764541304:web:5d06628ab9d829b9cfbc8d"
-        };
-
-        firebase.initializeApp(firebaseConfig);
+    <!-- Carrega Configurações Externas (Ignoradas pelo Git por segurança) -->
+    <script src="firebase-config.js"></script>
+    <script>
+        // Inicialização do Firebase com a config carregada externamente
+        if (typeof firebaseConfig === 'undefined') {
+            alert("Erro Crítico: Arquivo 'firebase-config.js' não encontrado.");
+        } else {
+            firebase.initializeApp(firebaseConfig);
+        }
+        
         const auth = firebase.auth();
+    </script>
+
+    <script>
 
         let currentUser = null;
         let idToken = null;
